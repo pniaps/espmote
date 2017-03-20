@@ -1,10 +1,8 @@
-#include "FS.h"
-
 void fileSystemCheck()
 {
   if (SPIFFS.begin())
   {
-    fs::File f = SPIFFS.open("config.dat", "r");
+    fs::File f = SPIFFS.open("settings.dat", "r");
     if (!f)
     {
       ResetFactory();
