@@ -1,4 +1,22 @@
 #include "Server.h"
+
+struct SettingsStr
+{
+  unsigned long PID;
+  int           Version;
+  byte          IP[4];
+  byte          Gateway[4];
+  byte          Subnet[4];
+  byte          DNS[4];
+  char          WifiSSID[32];
+  char          WifiKey[64];
+  char          WifiSSID2[32];
+  char          WifiKey2[64];
+  char          WifiAPKey[64];
+  char          Name[26];
+  char          Password[26];
+}extern SettingsStr *Settings;
+
 #define LED_PIN 2
 
 int getRSSIasQuality(int RSSI) {
@@ -170,9 +188,14 @@ void handleWifi(boolean scan) {
 void handleWifiSave() {
   Serial.println(F("WiFi save"));
 
-  //SAVE/connect here
-  //  _ssid = server->arg("s").c_str();
-  //  _pass = server->arg("p").c_str();
+    String ssid = server.arg(F("ssid"));
+    String password = server.arg(F("password"));
+  if (ssid.length() != 0 && password.length())
+  {
+    strncpy(Settings.WifiSSID, ssid.c_str(), sizeof(Settings.WifiSSID));
+    strncpy(Settings.WifiKey, password.c_str(), sizeof(Settings.WifiKey));
+    wifiSetupConnect = true;
+  }
 
   //parameters
   /*for (int i = 0; i < _paramsCount; i++) {
@@ -256,8 +279,8 @@ void setupServer()
     response += n;
     response += ",\"networks\":[";
     if (n == 0) {
-//      Serial.println(F("No networks found"));
-//      page += F("No networks found. Refresh to scan again.");
+      //      Serial.println(F("No networks found"));
+      //      page += F("No networks found. Refresh to scan again.");
     } else {
 
       //sort networks
@@ -285,7 +308,7 @@ void setupServer()
       //display networks in page
       for (int i = 0; i < n; i++) {
         if (indices[i] == -1) continue; // skip dups
-        if(i){
+        if (i) {
           response += ",";
         }
         response += "{\"ssid\":\"";
