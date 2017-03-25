@@ -73,7 +73,8 @@ boolean WifiConnect(boolean primary, byte connectAttempts)
           IPAddress ip = WiFi.localIP();
           char str[20];
           sprintf_P(str, PSTR("%u.%u.%u.%u"), ip[0], ip[1], ip[2], ip[3]);
-          Serial.println(str);
+          Serial.println(str);          
+
           break;
         }
         else

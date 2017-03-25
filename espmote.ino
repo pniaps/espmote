@@ -6,16 +6,13 @@
 
 #define GPIO_PIN 0
 #define LED_PIN 2
-#define VERSION 170305
-#define MDNS_DEBUG_ERR
-#define MDNS_DEBUG_TX
-#define MDNS_DEBUG_RX
 #include <Ticker.h>
 Ticker ticker;
+Ticker tickerPing;
 
 #define DEFAULT_NAME        "newdevice"         // Enter your device friendly name
-#define DEFAULT_SSID        "ssid"              // Enter your network SSID
-#define DEFAULT_KEY         "wpakey"            // Enter your network WPA key
+#define DEFAULT_SSID        "Einp"              // Enter your network SSID
+#define DEFAULT_KEY         "968208854"            // Enter your network WPA key
 #define DEFAULT_AP_KEY      "configesp"         // Enter network WPA key for AP (config) mode
 
 #define DEFAULT_USE_STATIC_IP   false           // true or false enabled or disabled set static IP
@@ -25,7 +22,7 @@ Ticker ticker;
 #define DEFAULT_SUBNET      "255.255.255.0"     // Enter your subnet
 
 #define ESP_PROJECT_PID           2016110801L
-#define VERSION                             2
+#define VERSION                             170305
 
 struct SettingsStr
 {
@@ -57,6 +54,9 @@ const byte DNS_PORT = 53;
 IPAddress apIP(192, 168, 4, 1);
 DNSServer dnsServer;
 
+#include <ESP8266HTTPClient.h>
+HTTPClient http;
+
 
 void setup()
 {
@@ -70,6 +70,15 @@ void setup()
 
   fileSystemCheck();
   LoadSettings();
+
+  if (Settings.Version != VERSION || Settings.PID != ESP_PROJECT_PID)
+  {
+    Serial.print(F("Version:"));
+    Serial.println(Settings.Version);
+    Serial.println(F("INIT : Incorrect PID or version!"));
+    delay(1000);
+    ResetFactory();
+  }
 
   if (strcasecmp(Settings.WifiSSID, "ssid") == 0)
     wifiSetup = true;
@@ -124,6 +133,7 @@ void setup()
   if (wifiSetup)
     dnsServer.start(DNS_PORT, "*", apIP);
 
+  tickerPing.attach(300, sendPingFlag);
 }
 
 void changeLED() {
@@ -179,7 +189,7 @@ void loop()
   if (wifiSetupConnect)
   {
     // try to connect for setup wizard
-    WifiConnect(true,1);
+    WifiConnect(true, 1);
     wifiSetupConnect = false;
   }
 
@@ -193,6 +203,8 @@ void backgroundtasks()
     dnsServer.processNextRequest();
 
   server.handleClient();
+
+  sendPing();
 
   yield();
 }
