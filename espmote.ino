@@ -66,15 +66,17 @@ void setup()
 
   Serial.begin(115200);
   Serial.println();
-  Serial.println();
+  Serial.println("Starting...");
+  Serial.println( "Compiled: " __DATE__ ", " __TIME__);
+
+  Serial.print(F("Version: "));
+  Serial.println(VERSION);
 
   fileSystemCheck();
   LoadSettings();
 
   if (Settings.Version != VERSION || Settings.PID != ESP_PROJECT_PID)
   {
-    Serial.print(F("Version:"));
-    Serial.println(Settings.Version);
     Serial.println(F("INIT : Incorrect PID or version!"));
     delay(1000);
     ResetFactory();
