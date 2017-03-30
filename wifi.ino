@@ -15,7 +15,7 @@ void WifiAPMode(boolean state)
 }
 
 
-boolean WifiConnect(boolean primary, byte connectAttempts)
+boolean WifiConnect(byte connectAttempts)
 {
   String log = "";
 
@@ -50,10 +50,7 @@ boolean WifiConnect(boolean primary, byte connectAttempts)
 
         if (tryConnect == 1)
         {
-          if (primary)
-            WiFi.begin(Settings.WifiSSID, Settings.WifiKey);
-          else
-            WiFi.begin(Settings.WifiSSID2, Settings.WifiKey2);
+          WiFi.begin(Settings.WifiSSID, Settings.WifiKey);
         }
         else
           WiFi.begin();
@@ -73,7 +70,7 @@ boolean WifiConnect(boolean primary, byte connectAttempts)
           IPAddress ip = WiFi.localIP();
           char str[20];
           sprintf_P(str, PSTR("%u.%u.%u.%u"), ip[0], ip[1], ip[2], ip[3]);
-          Serial.println(str);          
+          Serial.println(str);
 
           break;
         }

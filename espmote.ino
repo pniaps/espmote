@@ -34,8 +34,6 @@ struct SettingsStr
   byte          DNS[4];
   char          WifiSSID[32];
   char          WifiKey[64];
-  char          WifiSSID2[32];
-  char          WifiKey2[64];
   char          WifiAPKey[64];
   char          Name[26];
   char          Password[26];
@@ -97,8 +95,7 @@ void setup()
   // We start in STA mode
   WiFi.mode(WIFI_STA);
 
-  if (!WifiConnect(true, 3))
-    WifiConnect(false, 3);
+  WifiConnect(3);
 
 
   //Serial.print(__DATE__);
@@ -113,7 +110,7 @@ void setup()
   }
   Serial.println("mDNS responder started");
   MDNS.begin(hostString);
-  MDNS.addService("http", "tcp", 80); // Announce esp tcp service on port 8080
+//  MDNS.addService("http", "tcp", 80); // Announce esp tcp service on port 8080
   MDNS.addService("espmote", "tcp", 80); // Announce esp tcp service on port 8080
 
   OTAConfigure();
@@ -191,7 +188,7 @@ void loop()
   if (wifiSetupConnect)
   {
     // try to connect for setup wizard
-    WifiConnect(true, 1);
+    WifiConnect(1);
     wifiSetupConnect = false;
   }
 
