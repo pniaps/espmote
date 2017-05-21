@@ -64,7 +64,7 @@ void ResetFactory(void)
   WiFi.persistent(true); // use SDK storage of SSID/WPA parameters
   WiFi.disconnect(); // this will store empty ssid/wpa into sdk storage
   WiFi.persistent(false); // Do not use SDK storage of SSID/WPA parameters
-  ESP.reset();
+  ESP.restart();
 }
 
 boolean SaveSettings(void)

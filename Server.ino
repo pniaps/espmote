@@ -47,6 +47,14 @@ void handleNotFound() {
   server.send ( 404, "text/plain", message );
 }
 
+void handleReset() {
+  String message = "Resetting factory...\n\n";
+
+  server.send ( 404, "text/plain", message );
+
+  ResetFactory();
+}
+
 void handleWifi(boolean scan) {
 
   String page = FPSTR(HTTP_HEAD);
@@ -241,6 +249,8 @@ void handleWifiSave() {
   server.send(200, "text/html", page);
 
   Serial.println(F("Sent wifi save page"));
+
+  SaveSettings();
 }
 
 
@@ -257,6 +267,15 @@ void setupServer()
   });
 
   server.on("/status", []() {
+    String message = "";
+    if (digitalRead(LED_PIN) == LOW) {
+      message = "{\"enabled\":true}";
+    } else {
+      message = "{\"enabled\":false}";
+    }
+    server.send ( 200, "application/json", message);
+  });
+  server.on("/", []() {
     String message = "";
     if (digitalRead(LED_PIN) == LOW) {
       message = "{\"enabled\":true}";
@@ -323,6 +342,8 @@ void setupServer()
       server.send ( 200, "application/json", response);
     }
   });
+
+  server.on("/reset", handleReset);
 
   server.onNotFound ( handleNotFound );
 
