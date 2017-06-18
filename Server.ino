@@ -1,8 +1,5 @@
 
 #include <memory>
-extern "C" {
-  #include "user_interface.h"
-}
 
 const char HTTP_HEAD[] PROGMEM            = "<!DOCTYPE html><html lang=\"en\"><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, user-scalable=no\"/><title>{v}</title>";
 const char HTTP_STYLE[] PROGMEM           = "<style>.c{text-align: center;} div,input{padding:5px;font-size:1em;} input{width:95%;} body{text-align: center;font-family:verdana;} button{border:0;border-radius:0.3rem;background-color:#1fa3ec;color:#fff;line-height:2.4rem;font-size:1.2rem;width:100%;} .q{float: right;width: 64px;text-align: right;} .l{background: url(\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAAALVBMVEX///8EBwfBwsLw8PAzNjaCg4NTVVUjJiZDRUUUFxdiZGSho6OSk5Pg4eFydHTCjaf3AAAAZElEQVQ4je2NSw7AIAhEBamKn97/uMXEGBvozkWb9C2Zx4xzWykBhFAeYp9gkLyZE0zIMno9n4g19hmdY39scwqVkOXaxph0ZCXQcqxSpgQpONa59wkRDOL93eAXvimwlbPbwwVAegLS1HGfZAAAAABJRU5ErkJggg==\") no-repeat left center;background-size: 1em;}</style>";
@@ -194,8 +191,8 @@ void handleWifi(boolean scan) {
 void handleWifiSave() {
   Serial.println(F("WiFi save"));
 
-    String ssid = server.arg(F("ssid"));
-    String password = server.arg(F("password"));
+  String ssid = server.arg(F("ssid"));
+  String password = server.arg(F("password"));
   if (ssid.length() != 0 && password.length())
   {
     strncpy(Settings.WifiSSID, ssid.c_str(), sizeof(Settings.WifiSSID));
@@ -247,9 +244,6 @@ void handleWifiSave() {
   page += FPSTR(HTTP_END);
 
   server.send(200, "text/html", page);
-
-  Serial.println(F("Sent wifi save page"));
-
   SaveSettings();
 }
 
@@ -345,9 +339,30 @@ void setupServer()
 
   server.on("/reset", handleReset);
 
+  server.on("/info", []() {
+    char body[1024] = {0};
+
+    uint32_t realSize = ESP.getFlashChipRealSize();
+    uint32_t ideSize = ESP.getFlashChipSize();
+    FlashMode_t ideMode = ESP.getFlashChipMode();
+
+    sprintf(body, "{\"Version\":\"%d\",\"id\":\"%06X\",\"Flash real id\":\"%08X\",\"Flash real size\":\"%u\",\"Flash ide size\":\"%u\",\"Flash size\":\"%s\",\"Sketch Size\":\"%u\",\"Free Sketch Space\":\"%u\"}",
+            VERSION,
+            ESP.getChipId(),
+            ESP.getFlashChipId(),
+            realSize,
+            ideSize,
+            (ideSize != realSize ? "Flash Chip configuration wrong!" : "Flash Chip configuration ok"),
+            ESP.getSketchSize(),
+            ESP.getFreeSketchSpace()
+           );
+    server.send ( 200, "application/json", body);
+  });
+
+
   server.onNotFound ( handleNotFound );
 
   server.begin();
-
+  dbg_printf ("[SERVER] Ready\n");
 }
 
