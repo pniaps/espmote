@@ -1,14 +1,18 @@
 void WifiAPMode(boolean state)
 {
+  ticker.detach();
   if (state)
   {
-    WiFi.mode(WIFI_AP_STA);
-    Serial.println("Enabling soft-AP ... ");
+    //    Serial.printf("Enabling soft-AP %s\n", WiFi.mode(WIFI_AP_STA) ? "..." : "Failed!");
+    Serial.printf("Enabling soft-AP\n");
+    WiFi.enableAP(true);
+    ticker.attach(0.5, changeLED);
   }
   else
   {
-    WiFi.mode(WIFI_STA);
-    Serial.println("Disabling soft-AP ... ");
+    //    Serial.printf("Disabling soft-AP %s\n", WiFi.mode(WIFI_STA) ? "..." : "Failed!");
+    Serial.printf("Disabling soft-AP\n");
+    WiFi.enableAP(false);
   }
   delay(500); // Without delay I've seen the IP address blank
   MDNS.notifyAPChange();
@@ -88,7 +92,6 @@ boolean WifiConnect(byte connectAttempts)
     else
     {
       Serial.println("WIFI : No SSID!");
-      WifiAPMode(true);
     }
   }
 

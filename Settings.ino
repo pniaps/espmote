@@ -61,9 +61,12 @@ void ResetFactory(void)
 
   Serial.println("Factory reset succesful, rebooting...");
   delay(1000);
-  WiFi.persistent(true); // use SDK storage of SSID/WPA parameters
+//  WiFi.persistent(true); // use SDK storage of SSID/WPA parameters
   WiFi.disconnect(); // this will store empty ssid/wpa into sdk storage
-  WiFi.persistent(false); // Do not use SDK storage of SSID/WPA parameters
+//  WiFi.persistent(false); // Do not use SDK storage of SSID/WPA parameters
+  ESP.eraseConfig();
+  delay(1000);
+  digitalWrite(0, LOW);
   ESP.restart();
 }
 
