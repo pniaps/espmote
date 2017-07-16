@@ -345,8 +345,9 @@ void setupServer()
     uint32_t realSize = ESP.getFlashChipRealSize();
     uint32_t ideSize = ESP.getFlashChipSize();
     FlashMode_t ideMode = ESP.getFlashChipMode();
+    IPAddress ip = server.client().localIP();
 
-    sprintf(body, "{\"Version\":\"%d\",\"id\":\"%06X\",\"Flash real id\":\"%08X\",\"Flash real size\":\"%u\",\"Flash ide size\":\"%u\",\"Flash size\":\"%s\",\"Sketch Size\":\"%u\",\"Free Sketch Space\":\"%u\"}",
+    sprintf(body, "{\"Version\":\"%d\",\"id\":\"%06X\",\"Flash id\":\"%08X\",\"Flash real size\":\"%u\",\"Flash ide size\":\"%u\",\"Flash size\":\"%s\",\"Sketch Size\":\"%u\",\"Free Sketch Space\":\"%u\",\"Client IP\":\"%u.%u.%u.%u\"}",
             VERSION,
             ESP.getChipId(),
             ESP.getFlashChipId(),
@@ -354,7 +355,8 @@ void setupServer()
             ideSize,
             (ideSize != realSize ? "Flash Chip configuration wrong!" : "Flash Chip configuration ok"),
             ESP.getSketchSize(),
-            ESP.getFreeSketchSpace()
+            ESP.getFreeSketchSpace(),
+            ip[0], ip[1], ip[2], ip[3]
            );
     server.send ( 200, "application/json", body);
   });

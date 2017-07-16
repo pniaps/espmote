@@ -25,7 +25,7 @@ Ticker tickerPing;
 #define DEFAULT_NAME        "newdevice"         // Enter your device friendly name
 #define DEFAULT_SSID        ""              // Enter your network SSID
 #define DEFAULT_KEY         ""            // Enter your network WPA key
-#define DEFAULT_AP_KEY      "configesp"         // Enter network WPA key for AP (config) mode
+#define DEFAULT_AP_KEY      "moteconfig"         // Enter network WPA key for AP (config) mode
 
 #define DEFAULT_USE_STATIC_IP   false           // true or false enabled or disabled set static IP
 #define DEFAULT_IP          "192.168.0.50"      // Enter your IP address
@@ -96,6 +96,8 @@ void setup()
   Serial.println();
   Serial.println("Starting...");
   Serial.println( "Compiled: " __DATE__ ", " __TIME__);
+  Serial.print("Flash size: ");
+  Serial.println(ESP.getFlashChipRealSize());
 
   Serial.print(F("Version: "));
   Serial.println(VERSION);
@@ -223,7 +225,11 @@ void loop()
   if (wifiSetupConnect)
   {
     // try to connect for setup wizard
-    WifiConnect(1);
+    if (WifiConnect(1)) {
+      ticker.detach();
+      delay(2000);
+      WifiAPMode(false);
+    }
     wifiSetupConnect = false;
   }
 
