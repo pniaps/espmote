@@ -23,12 +23,12 @@ boolean WifiConnect(byte connectAttempts)
 {
   String log = "";
 
-  char hostName[sizeof(Settings.Name)];
-  strcpy(hostName, Settings.Name);
-  for (byte x = 0; x < sizeof(hostName); x++)
-    if (hostName[x] == ' ')
-      hostName[x] = '-';
-  wifi_station_set_hostname(hostName);
+//  char hostName[sizeof(Settings.Name)];
+//  strcpy(hostName, Settings.Name);
+//  for (byte x = 0; x < sizeof(hostName); x++)
+//    if (hostName[x] == ' ')
+//      hostName[x] = '-';
+//  wifi_station_set_hostname(hostName);
 
   if (Settings.IP[0] != 0 && Settings.IP[0] != 255)
   {

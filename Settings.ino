@@ -10,7 +10,7 @@ void fileSystemCheck()
   }
 }
 
-void ResetFactory(void)
+void ResetFactory()
 {
 
 
@@ -53,20 +53,28 @@ void ResetFactory(void)
 
   strcpy_P(Settings.WifiSSID, PSTR(DEFAULT_SSID));
   strcpy_P(Settings.WifiKey, PSTR(DEFAULT_KEY));
-  strcpy_P(Settings.WifiAPKey, PSTR(DEFAULT_AP_KEY));
+
   strcpy_P(Settings.Name, PSTR(DEFAULT_NAME));
-  Settings.Password[0] = 0;
+  strcpy_P(Settings.Password, PSTR(DEFAULT_PASSWORD));
+
+  for (byte x = 0; x < 3; x++)
+  {
+    Settings.lines[x] = -1;
+    Settings.triggers[x] = -1;
+  }
 
   SaveSettings();
 
   Serial.println("Factory reset succesful, rebooting...");
   delay(1000);
 //  WiFi.persistent(true); // use SDK storage of SSID/WPA parameters
-  WiFi.disconnect(); // this will store empty ssid/wpa into sdk storage
+//  WiFi.disconnect(); // this will store empty ssid/wpa into sdk storage
 //  WiFi.persistent(false); // Do not use SDK storage of SSID/WPA parameters
   ESP.eraseConfig();
   delay(1000);
-  digitalWrite(0, LOW);
+  pinMode(0, OUTPUT);
+  digitalWrite(0, false);
+  delay(1000);
   ESP.restart();
 }
 

@@ -22,10 +22,10 @@ void changeLED() {
 Ticker ticker;
 Ticker tickerPing;
 
-#define DEFAULT_NAME        "newdevice"         // Enter your device friendly name
-#define DEFAULT_SSID        ""              // Enter your network SSID
-#define DEFAULT_KEY         ""            // Enter your network WPA key
-#define DEFAULT_AP_KEY      "moteconfig"         // Enter network WPA key for AP (config) mode
+#define DEFAULT_NAME        "newdevice"    // Enter your device friendly name
+#define DEFAULT_SSID        ""             // Enter your network SSID
+#define DEFAULT_KEY         ""             // Enter your network WPA key
+#define DEFAULT_PASSWORD    "moteconfig"   // Enter network WPA key for AP (config) mode
 
 #define DEFAULT_USE_STATIC_IP   false           // true or false enabled or disabled set static IP
 #define DEFAULT_IP          "192.168.0.50"      // Enter your IP address
@@ -34,27 +34,30 @@ Ticker tickerPing;
 #define DEFAULT_SUBNET      "255.255.255.0"     // Enter your subnet
 
 #define ESP_PROJECT_PID 2016110801L
-#define VERSION 170526
+#define VERSION 170723
 
 struct SettingsStr
 {
   unsigned long PID;
   int           Version;
+
   byte          IP[4];
   byte          Gateway[4];
   byte          Subnet[4];
   byte          DNS[4];
+
   char          WifiSSID[32];
   char          WifiKey[64];
-  char          WifiAPKey[64];
-  char          Name[26];
+
+  char          Name[32];
   char          Password[26];
+
+  int8_t       lines[3];
+  int8_t       triggers[3];
 } Settings;
 
 #include <ESP8266WebServer.h>
 ESP8266WebServer server (80);
-
-char hostString[16] = {0};
 
 boolean wifiSetup = false;
 boolean wifiSetupConnect = false;
@@ -120,14 +123,13 @@ void setup()
 
   char hostString[16] = {0};
   sprintf(hostString, "ESP_%06X", ESP.getChipId());
-  WiFi.hostname(hostString);
   ArduinoOTA.setHostname(hostString);
 
   WiFi.onEvent(eventWiFi);
 
   // setup ssid for AP Mode when needed
-  WiFi.softAP(hostString, Settings.WifiAPKey);
-  dbg_printf ("[AP] Configured, Host: %s, Password: %s\n", hostString, Settings.WifiAPKey);
+  WiFi.softAP(hostString, Settings.Password);
+  dbg_printf ("[AP] Configured, Host: %s, Password: %s\n", hostString, Settings.Password);
 
   // We start in STA mode
   Serial.printf("Wi-Fi mode set to WIFI_STA %s\n", WiFi.mode(WIFI_STA) ? "" : "Failed!");
@@ -146,13 +148,10 @@ void setup()
   //enable MDNS
   if (!MDNS.begin(hostString)) {
     Serial.println("Error setting up MDNS responder!");
-    while (1) {
-      delay(1000);
-    }
+  } else {
+    Serial.println("mDNS responder started");
+    MDNS.addService("espmote", "tcp", 80);
   }
-  Serial.println("mDNS responder started");
-  //  MDNS.addService("http", "tcp", 80); // Announce esp tcp service on port 8080
-  MDNS.addService("espmote", "tcp", 80); // Announce esp tcp service on port 8080
 
   OTAConfigure();
 
