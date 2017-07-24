@@ -170,9 +170,6 @@ void setup()
   // (captive portal concept)
   if (wifiSetup)
     dnsServer.start(DNS_PORT, "*", apIP);
-
-  sendPingFlag();
-  tickerPing.attach(300, sendPingFlag);
 }
 
 int buttonState = 0;     // current state of the button
@@ -260,6 +257,7 @@ void eventWiFi(WiFiEvent_t event) {
       break;
 
     case WIFI_EVENT_STAMODE_DISCONNECTED:
+      tickerPing.detach();
       dbg_printf("[WiFi] %d, Disconnected - Status %d, %s\n", event, WiFi.status(), connectionStatus( WiFi.status() ).c_str() );
       break;
 
@@ -268,6 +266,8 @@ void eventWiFi(WiFiEvent_t event) {
       break;
 
     case WIFI_EVENT_STAMODE_GOT_IP:
+      sendPingFlag();
+      tickerPing.attach(300, sendPingFlag);
       dbg_printf("[WiFi] %d, Got IP\n", event);
       //      setupOTA();
       break;
