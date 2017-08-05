@@ -52,15 +52,17 @@ struct SettingsStr
   char          Name[32];
   char          Password[26];
 
-  int8_t       lines[3];
-  int8_t       triggers[3];
+  int8_t       chi[3]; //channel input
+  int8_t       cho[3]; //channel output
 } Settings;
 
 #include <ESP8266WebServer.h>
 ESP8266WebServer server (80);
 
 boolean wifiSetup = false;
-boolean wifiSetupConnect = false;
+boolean tryToConnect = false;
+/** Last time I tried to connect to WLAN */
+long lastConnectTry = 0;
 #include <DNSServer.h>
 // Setup DNS, only used if the ESP has no valid WiFi config
 const byte DNS_PORT = 53;
@@ -87,7 +89,9 @@ void dbg_printf ( const char *format, ... )
 
 }
 
-
+WiFiEventHandler onConnectedHandler;
+WiFiEventHandler onGotIPHandler;
+WiFiEventHandler onDisconnectedHandler;
 
 void setup()
 {
@@ -125,8 +129,6 @@ void setup()
   sprintf(hostString, "ESP_%06X", ESP.getChipId());
   ArduinoOTA.setHostname(hostString);
 
-  WiFi.onEvent(eventWiFi);
-
   // setup ssid for AP Mode when needed
   WiFi.softAP(hostString, Settings.Password);
   dbg_printf ("[AP] Configured, Host: %s, Password: %s\n", hostString, Settings.Password);
@@ -136,9 +138,11 @@ void setup()
 
   if (WifiConnect(3)) {
     ticker.detach();
+    WiFi.setAutoReconnect(false);
   } else {
     delay(2000);
     WifiAPMode(true);
+    tryToConnect = true;
   }
 
 
@@ -163,13 +167,18 @@ void setup()
   attachInterrupt(GPIO_PIN, buttonChange, CHANGE);
 
   //  ticker.detach();
-  //  digitalWrite(BUILTIN_LED, LOW);
+  digitalWrite(LED_PIN, HIGH);
 
   // Start DNS, only used if the ESP has no valid WiFi config
   // It will reply with it's own address on all DNS requests
   // (captive portal concept)
   if (wifiSetup)
     dnsServer.start(DNS_PORT, "*", apIP);
+
+//  WiFi.onEvent(eventWiFi);
+  onConnectedHandler = WiFi.onStationModeConnected(&onConnected);
+  onGotIPHandler = WiFi.onStationModeGotIP(&onGotIP);
+  onDisconnectedHandler = WiFi.onStationModeDisconnected(&onDisconnected);
 }
 
 int buttonState = 0;     // current state of the button
@@ -218,15 +227,24 @@ void loop()
 {
   ArduinoOTA.handle();
 
-  if (wifiSetupConnect)
+  if (tryToConnect)
   {
     // try to connect for setup wizard
-    if (WifiConnect(1)) {
-      ticker.detach();
-      delay(2000);
-      WifiAPMode(false);
+    if (millis() > (lastConnectTry + 15000) ) {
+      Serial.print("Loop connecting... ");
+      /* If WLAN disconnected and idle try to connect */
+      /* Don't set retry time too low as retry interfere the softAP operation */
+      lastConnectTry = millis();
+      if (WifiConnect(1)) {
+        WiFi.setAutoReconnect(false);
+        Serial.print("Loop conected ... ");
+        ticker.detach();
+
+
+        WifiAPMode(false);
+        tryToConnect = false;
+      }
     }
-    wifiSetupConnect = false;
   }
 
   backgroundtasks();
@@ -257,7 +275,6 @@ void eventWiFi(WiFiEvent_t event) {
       break;
 
     case WIFI_EVENT_STAMODE_DISCONNECTED:
-      tickerPing.detach();
       dbg_printf("[WiFi] %d, Disconnected - Status %d, %s\n", event, WiFi.status(), connectionStatus( WiFi.status() ).c_str() );
       break;
 
@@ -324,3 +341,31 @@ String connectionStatus ( int which )
   }
 }
 
+void onConnected(const WiFiEventStationModeConnected& evt) {
+  Serial.print("---Station connected: ");
+  Serial.println(evt.ssid.c_str());
+}
+
+void onDisconnected(const WiFiEventStationModeDisconnected& evt) {
+  Serial.print("---Station disconnected: ");
+  Serial.print(evt.ssid.c_str());
+  Serial.print(" reason: ");
+  Serial.println(evt.reason);
+//  if (evt.reason == WIFI_DISCONNECT_REASON_AUTH_LEAVE) {
+    if (!tryToConnect) {
+      dbg_printf("tryToConnect\r\n");
+      tickerPing.detach();
+      ticker.attach(0.2, changeLED);
+      tryToConnect = true;
+    }
+//  }
+}
+
+void onGotIP(WiFiEventStationModeGotIP ipInfo) { // As soon WiFi is connected, start NTP Client
+  tryToConnect = false;
+  Serial.printf("Got IP: %s\r\n", ipInfo.ip.toString().c_str());
+  sendPingFlag();
+  tickerPing.attach(300, sendPingFlag);
+  ticker.detach();
+  digitalWrite(LED_PIN, HIGH);
+}

@@ -1,6 +1,6 @@
 void WifiAPMode(boolean state)
 {
-  ticker.detach();
+//  ticker.detach();
   if (state)
   {
     //    Serial.printf("Enabling soft-AP %s\n", WiFi.mode(WIFI_AP_STA) ? "..." : "Failed!");

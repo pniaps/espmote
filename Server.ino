@@ -197,7 +197,7 @@ void handleWifiSave() {
   {
     strncpy(Settings.WifiSSID, ssid.c_str(), sizeof(Settings.WifiSSID));
     strncpy(Settings.WifiKey, password.c_str(), sizeof(Settings.WifiKey));
-    wifiSetupConnect = true;
+    tryToConnect = true;
   }
 
   //parameters

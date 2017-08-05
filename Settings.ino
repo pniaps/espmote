@@ -59,8 +59,8 @@ void ResetFactory()
 
   for (byte x = 0; x < 3; x++)
   {
-    Settings.lines[x] = -1;
-    Settings.triggers[x] = -1;
+    Settings.chi[x] = -1;
+    Settings.cho[x] = -1;
   }
 
   SaveSettings();
