@@ -137,6 +137,8 @@ void setup()
   Serial.printf("Wi-Fi mode set to WIFI_STA %s\n", WiFi.mode(WIFI_STA) ? "" : "Failed!");
 
   if (WifiConnect(3)) {
+    sendPingFlag();
+    tickerPing.attach(300, sendPingFlag);
     ticker.detach();
     WiFi.setAutoReconnect(false);
   } else {
@@ -175,7 +177,7 @@ void setup()
   if (wifiSetup)
     dnsServer.start(DNS_PORT, "*", apIP);
 
-//  WiFi.onEvent(eventWiFi);
+  //  WiFi.onEvent(eventWiFi);
   onConnectedHandler = WiFi.onStationModeConnected(&onConnected);
   onGotIPHandler = WiFi.onStationModeGotIP(&onGotIP);
   onDisconnectedHandler = WiFi.onStationModeDisconnected(&onDisconnected);
@@ -351,14 +353,14 @@ void onDisconnected(const WiFiEventStationModeDisconnected& evt) {
   Serial.print(evt.ssid.c_str());
   Serial.print(" reason: ");
   Serial.println(evt.reason);
-//  if (evt.reason == WIFI_DISCONNECT_REASON_AUTH_LEAVE) {
-    if (!tryToConnect) {
-      dbg_printf("tryToConnect\r\n");
-      tickerPing.detach();
-      ticker.attach(0.2, changeLED);
-      tryToConnect = true;
-    }
-//  }
+  //  if (evt.reason == WIFI_DISCONNECT_REASON_AUTH_LEAVE) {
+  if (!tryToConnect) {
+    dbg_printf("tryToConnect\r\n");
+    tickerPing.detach();
+    ticker.attach(0.2, changeLED);
+    tryToConnect = true;
+  }
+  //  }
 }
 
 void onGotIP(WiFiEventStationModeGotIP ipInfo) { // As soon WiFi is connected, start NTP Client
