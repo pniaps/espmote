@@ -34,7 +34,7 @@ Ticker tickerPing;
 #define DEFAULT_SUBNET      "255.255.255.0"     // Enter your subnet
 
 #define ESP_PROJECT_PID 2016110801L
-#define VERSION 170723
+#define VERSION 170812
 
 struct SettingsStr
 {
@@ -50,10 +50,11 @@ struct SettingsStr
   char          WifiKey[64];
 
   char          Name[32];
-  char          Password[26];
+  char          Password[64];
 
-  int8_t       chi[3]; //channel input
-  int8_t       cho[3]; //channel output
+  int8_t        led;
+  int8_t        chi[3]; //channel input
+  int8_t        cho[3]; //channel output
 } Settings;
 
 #include <ESP8266WebServer.h>

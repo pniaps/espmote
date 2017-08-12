@@ -260,15 +260,7 @@ void setupServer()
     server.send ( 200, "application/json", "{\"enabled\":false}");
   });
 
-  server.on("/status", []() {
-    String message = "";
-    if (digitalRead(LED_PIN) == LOW) {
-      message = "{\"enabled\":true}";
-    } else {
-      message = "{\"enabled\":false}";
-    }
-    server.send ( 200, "application/json", message);
-  });
+  server.on("/status", handle_status);
   server.on("/", []() {
     String message = "";
     if (digitalRead(LED_PIN) == LOW) {
@@ -364,7 +356,295 @@ void setupServer()
 
   server.onNotFound ( handleNotFound );
 
+  server.on("/config", handle_config);
+  //  server.on("/hardware", handle_hardware);
+
   server.begin();
   dbg_printf ("[SERVER] Ready\n");
 }
 
+void addPinStateSelect(String& str, String name,  int value)
+{
+  String options[13];
+  options[0] = F("Disabled");
+  options[1] = F("GPIO4 Low");
+  options[2] = F("GPIO4 High");
+  options[3] = F("GPIO5 Low");
+  options[4] = F("GPIO5 High");
+  options[5] = F("GPIO12 Low");
+  options[6] = F("GPIO12 High");
+  options[7] = F("GPIO13 Low");
+  options[8] = F("GPIO13 High");
+  options[9] = F("GPIO14 Low");
+  options[10] = F("GPIO14 High");
+  options[11] = F("GPIO16 Low");
+  options[12] = F("GPIO16 High");
+  int values[13];
+  values[0] = 0;
+  values[1] = -4;
+  values[2] = 4;
+  values[3] = -5;
+  values[4] = 5;
+  values[5] = -12;
+  values[6] = 12;
+  values[7] = -13;
+  values[8] = 13;
+  values[9] = -14;
+  values[10] = 14;
+  values[11] = -16;
+  values[12] = 16;
+
+  str += F("<select name='");
+  str += name;
+  str += "'>";
+  for (int x = 0; x < 13; x++)
+  {
+    str += F("<option value='");
+    str += values[x];
+    str += "'";
+    if (value == x)
+      str += F(" selected");
+    str += ">";
+    str += options[x];
+    str += F("</option>");
+  }
+  str += F("</select>");
+}
+
+void handle_config() {
+  char tmpString[64];
+
+  String name = server.arg("name");
+  String password = server.arg("password");
+  String ssid = server.arg("ssid");
+  String key = server.arg("key");
+  String espip = server.arg("espip");
+  String espgateway = server.arg("espgateway");
+  String espsubnet = server.arg("espsubnet");
+  String espdns = server.arg("espdns");
+
+  if (ssid[0] != 0)
+  {
+    strncpy(Settings.Name, name.c_str(), sizeof(Settings.Name));
+    strncpy(Settings.Password, password.c_str(), sizeof(Settings.Password));
+    strncpy(Settings.WifiSSID, ssid.c_str(), sizeof(Settings.WifiSSID));
+    strncpy(Settings.WifiKey, key.c_str(), sizeof(Settings.WifiKey));
+
+    espip.toCharArray(tmpString, 26);
+    str2ip(tmpString, Settings.IP);
+    espgateway.toCharArray(tmpString, 26);
+    str2ip(tmpString, Settings.Gateway);
+    espsubnet.toCharArray(tmpString, 26);
+    str2ip(tmpString, Settings.Subnet);
+    espdns.toCharArray(tmpString, 26);
+    str2ip(tmpString, Settings.DNS);
+    SaveSettings();
+  }
+
+  String reply = "";
+  addHeader(true, reply);
+
+  reply += F("<form method='post'>");
+
+  reply += F("<div class='grid'>");
+
+  reply += F("<div class='full black'>Main Settings</div>");
+
+  reply += F("<div><label>Name</label></div>");
+  reply += F("<div><input type='text' name='name' maxlength='31' required value='");
+  Settings.Name[25] = 0;
+  reply += Settings.Name;
+  reply += F("'></div>");
+
+  reply += F("<div><label>Password</label></div>");
+  reply += F("<div><input type='text' name='password' pattern='.{8,63}' required value='");
+  //  Settings.Password[63] = 0;
+  //  reply += Settings.Password;
+  reply += F("'></div>");
+
+  reply += F("<div class='full black'>Optional Settings</div>");
+
+  char str[20];
+  reply += F("<div><label>ESP IP:</label></div><div><input type='text' name='espip' value='");
+  sprintf_P(str, PSTR("%u.%u.%u.%u"), Settings.IP[0], Settings.IP[1], Settings.IP[2], Settings.IP[3]);
+  reply += str;
+  reply += F("'></div>");
+
+  reply += F("<div><label>ESP GW:</label></div><div><input type='text' name='espgateway' value='");
+  sprintf_P(str, PSTR("%u.%u.%u.%u"), Settings.Gateway[0], Settings.Gateway[1], Settings.Gateway[2], Settings.Gateway[3]);
+  reply += str;
+  reply += F("'></div>");
+
+  reply += F("<div><label>ESP Subnet:</label></div><div><input type='text' name='espsubnet' value='");
+  sprintf_P(str, PSTR("%u.%u.%u.%u"), Settings.Subnet[0], Settings.Subnet[1], Settings.Subnet[2], Settings.Subnet[3]);
+  reply += str;
+  reply += F("'></div>");
+
+  reply += F("<div><label>ESP DNS:</label></div><div><input type='text' name='espdns' value='");
+  sprintf_P(str, PSTR("%u.%u.%u.%u"), Settings.DNS[0], Settings.DNS[1], Settings.DNS[2], Settings.DNS[3]);
+  reply += str;
+  reply += F("'></div>");
+
+  reply += F("<div class='full black'>GPIO configuration</div>");
+  reply += F("<div><label>Channel 1:</label></div><div>");
+  addPinStateSelect(reply, "chi0", Settings.cho[0]);
+  reply += F("</div>");
+
+  reply += F("<div><label>Channel 2:</label></div><div>");
+  addPinStateSelect(reply, "chi1", Settings.cho[1]);
+  reply += F("</div>");
+
+  reply += F("<div><label>Channel 3:</label></div><div>");
+  addPinStateSelect(reply, "chi2", Settings.cho[2]);
+  reply += F("</div>");
+
+  reply += F("<div class='full' style=\"text-align:center;\"><button class=\"button\">Submit</button></div>");
+
+  reply += F("</div>");
+
+  reply += F("</form>");
+
+/*
+  reply += F("<form name='frmselect' method='post'><table style=\"border-collapse: collapse;border-spacing: 0;\">");
+  reply += F("<tr><th>Main Settings<th><tr><td>Name:<td><input type='text' name='name' maxlength='31' required value='");
+  Settings.Name[25] = 0;
+  reply += Settings.Name;
+  reply += F("'><tr><td>Password:<td><input type='text' name='password' pattern='.{8,63}' required value='");
+  //  SecuritySettings.Password[25] = 0;
+  //  reply += SecuritySettings.Password;
+  //  reply += F("'><tr><td>SSID:<td><input type='text' name='ssid' value='");
+  //  reply += Settings.WifiSSID;
+  //  reply += F("'><tr><td>WPA Key:<td><input type='password' maxlength='63' name='key' value='");
+  //  reply += Settings.WifiKey;
+
+  reply += F("'>");
+
+
+
+  reply += F("<tr><th>Optional Settings<th>");
+
+  reply += F("<tr><td>ESP IP:<td><input type='text' name='espip' value='");
+  sprintf_P(str, PSTR("%u.%u.%u.%u"), Settings.IP[0], Settings.IP[1], Settings.IP[2], Settings.IP[3]);
+  reply += str;
+
+  reply += F("'><tr><td>ESP GW:<td><input type='text' name='espgateway' value='");
+  sprintf_P(str, PSTR("%u.%u.%u.%u"), Settings.Gateway[0], Settings.Gateway[1], Settings.Gateway[2], Settings.Gateway[3]);
+  reply += str;
+
+  reply += F("'><tr><td>ESP Subnet:<td><input type='text' name='espsubnet' value='");
+  sprintf_P(str, PSTR("%u.%u.%u.%u"), Settings.Subnet[0], Settings.Subnet[1], Settings.Subnet[2], Settings.Subnet[3]);
+  reply += str;
+
+  reply += F("'><tr><td>ESP DNS:<td><input type='text' name='espdns' value='");
+  sprintf_P(str, PSTR("%u.%u.%u.%u"), Settings.DNS[0], Settings.DNS[1], Settings.DNS[2], Settings.DNS[3]);
+  reply += str;
+  reply += F("'>");
+
+  reply += F("<tr><th>GPIO configuration<th>");
+  reply += F("<tr><td>Channel 1:<td>");
+  addPinStateSelect(reply, "chi0", Settings.cho[0]);
+  reply += F("<tr><td>Channel 2:<td>");
+  addPinStateSelect(reply, "chi1", Settings.cho[1]);
+  reply += F("<tr><td>Channel 3:<td>");
+  addPinStateSelect(reply, "chi2", Settings.cho[2]);
+
+  reply += F("<tr><TD colspan=\"2\" style=\"text-align:center;\"><input class=\"button-link\" type='submit' value='Submit'>");
+
+  reply += F("</table></form>");
+  */
+  addFooter(reply);
+  server.send(200, "text/html", reply);
+}
+
+//void handle_hardware() {
+//  String reply = "";
+//  addHeader(true, reply);
+//
+//  reply += F("<form  method='post'><table><th>Hardware Settings<th><tr><td>");
+//
+//
+//
+//  reply += F("<tr><td>GPIO boot states:<td>");
+//  reply += F("<tr><td>Channel 1:<td>");
+//  addPinStateSelect(reply, "chi0", Settings.cho[0]);
+//  reply += F("<tr><td>Channel 2:<td>");
+//  addPinStateSelect(reply, "chi1", Settings.cho[1]);
+//  reply += F("<tr><td>Channel 3:<td>");
+//  addPinStateSelect(reply, "chi2", Settings.cho[2]);
+//
+//  reply += F("<tr><td><td><input class=\"button-link\" type='submit' value='Submit'><tr><td>");
+//
+//  reply += F("</table></form>");
+//  addFooter(reply);
+//  server.send(200, "text/html", reply);
+//}
+
+void handle_status() {
+  String message = "";
+  if (digitalRead(LED_PIN) == LOW) {
+    message = "{\"enabled\":true}";
+  } else {
+    message = "{\"enabled\":false}";
+  }
+  server.send ( 200, "application/json", message);
+}
+
+void addHeader(boolean showMenu, String& str)
+{
+  boolean cssfile = false;
+
+  str += F("<!doctype html><html lang=en><head><meta charset=utf-8><meta name='viewport' content='width=device-width, initial-scale=1'><title>");
+  str += Settings.Name;
+  str += F("</title>");
+
+  str += F("<style>");
+  str += F("html{box-sizing:border-box}*,*:before,*:after{box-sizing:inherit}html,body,h1,h2,h3,h4,h5,h6,p,ol,ul,li,dl,dt,dd,blockquote,address{margin:0;padding:0}");
+  str += F("body{padding:20px;font-family:sans-serif; font-size:12pt;}");
+  str += F("h1 {font-size:16pt; color:black;}");
+  str += F("h6 {font-size:10pt; color:black; text-align:center;}");
+  str += F(".button-menu {background-color:#ffffff; color:blue; margin: 10px; text-decoration:none}");
+  str += F(".button-link {padding:5px 15px; background-color:#0077dd; color:#fff; border:solid 1px #fff; text-decoration:none}");
+  str += F(".button-menu:hover {background:#ddddff;}");
+  str += F(".button-link:hover {background:#369;}");
+  str += F("th,.full {padding:10px;}.black{ background-color:black; color:#ffffff;}");
+  str += F("td {padding:7px;}");
+  str += F("table {color:black;}");
+  str += F(".div_l {float: left;}");
+  str += F(".div_r {float: right; margin: 2px; padding: 1px 10px; border-radius: 7px; background-color:#080; color:white;}");
+  str += F(".div_br {clear: both;}");
+
+  str += F(".grid{margin-left:-10px;}.grid>div{padding-left:10px;margin:0;float:left;width: 100%}");
+  str += F("@media (min-width:360px){.grid>div:not(.full){width: 50%}}");
+
+  str += F(".container{margin:0 auto;max-width: 400px;}");
+  str += F("label,input,select{width:100%;display:inline-block;height:30px;line-height:30px;margin:5px 0;}input,select{padding: 0 5px;}");
+  str += F(".button{border: 0;border-radius: 0.3rem;background-color: #1fa3ec;color: #fff;line-height: 2.4rem;font-size: 1.2rem;width: 100%;}");
+  str += F("@media (max-width:359px){label{height: auto;line-height:normal;}}");
+  str += F(".menu{margin; 0 10px}.menu>a{border:0;border-radius:0.3rem;background-color:#1fa3ec;color:#fff;line-height:30px;height:30px;font-size:1.2rem;padding:0 5px;text-decoration:none;display:inline-block;}.menu>a+a{margin-left:10px}");
+  str += F("</style>");
+
+  str += F("<script><!--");
+  str += F("function dept_onchange(frmselect) {frmselect.submit();}\n");
+  str += F("//--></script>");
+
+  str += F("</head><body><div class='container'>");
+
+  str += F("<h1>ESPMote: ");
+  str += Settings.Name;
+  str += F("</h1>");
+
+  if (showMenu)
+  {
+    str += F("<div class=\"menu\">");
+    str += F("<a href=\"/\">Main</a>");
+    str += F("<a href=\"config\">Config</a>");
+    //    str += F("<a href=\"hardware\">Hardware</a>");
+    str += F("<a href=\"wifi\">Wifi</a>");
+    str += F("<a href=\"reset\">Factory reset</a>");
+    str += F("</div>");
+  }
+}
+void addFooter(String& str)
+{
+  str += F("<h6>espmote.pnia.es</h6></div></body></html>");
+}
