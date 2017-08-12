@@ -30,3 +30,8 @@ boolean str2ip(char *string, byte* IP)
     return true;
   return false;
 }
+
+unsigned long FreeMem(void)
+{
+  return system_get_free_heap_size();
+}

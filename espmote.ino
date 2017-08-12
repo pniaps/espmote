@@ -23,7 +23,7 @@ Ticker ticker;
 Ticker tickerPing;
 
 #define DEFAULT_NAME        "newdevice"    // Enter your device friendly name
-#define DEFAULT_SSID        ""             // Enter your network SSID
+#define DEFAULT_SSID        "ssid"             // Enter your network SSID
 #define DEFAULT_KEY         ""             // Enter your network WPA key
 #define DEFAULT_PASSWORD    "moteconfig"   // Enter network WPA key for AP (config) mode
 
@@ -94,8 +94,11 @@ WiFiEventHandler onConnectedHandler;
 WiFiEventHandler onGotIPHandler;
 WiFiEventHandler onDisconnectedHandler;
 
+uint16_t lowestRAM = 0;
 void setup()
 {
+  lowestRAM = FreeMem();
+  
   pinMode(LED_PIN, OUTPUT);
   digitalWrite(LED_PIN, HIGH);
   ticker.attach(0.2, changeLED);
@@ -175,8 +178,9 @@ void setup()
   // Start DNS, only used if the ESP has no valid WiFi config
   // It will reply with it's own address on all DNS requests
   // (captive portal concept)
-  if (wifiSetup)
+  if (wifiSetup) {
     dnsServer.start(DNS_PORT, "*", apIP);
+  }
 
   //  WiFi.onEvent(eventWiFi);
   onConnectedHandler = WiFi.onStationModeConnected(&onConnected);
@@ -256,8 +260,9 @@ void loop()
 void backgroundtasks()
 {
   // process DNS, only used if the ESP has no valid WiFi config
-  if (wifiSetup)
+  if (wifiSetup) {
     dnsServer.processNextRequest();
+  }
 
   server.handleClient();
 
