@@ -124,69 +124,6 @@ void handleWifi(boolean scan) {
   page += F("<script>function c(l){document.getElementById('s').value=l.innerText||l.textContent;document.getElementById('p').focus();}</script>");
   page += F("<form method='post' action='wifisave'><input id='s' name='ssid' length='31' placeholder='SSID'><input id='p' name='password' length='63' type='password' placeholder='password'><div class='full' style=\"text-align:center;\"><button class=\"button\">Submit</button></div></form>");
 
-  //  page += FPSTR(HTTP_FORM_START);
-  //  char parLength[2];
-  //  // add the extra parameters to the form
-  //  /*for (int i = 0; i < _paramsCount; i++) {
-  //    if (_params[i] == NULL) {
-  //      break;
-  //    }
-  //
-  //    String pitem = FPSTR(HTTP_FORM_PARAM);
-  //    if (_params[i]->getID() != NULL) {
-  //      pitem.replace("{i}", _params[i]->getID());
-  //      pitem.replace("{n}", _params[i]->getID());
-  //      pitem.replace("{p}", _params[i]->getPlaceholder());
-  //      snprintf(parLength, 2, "%d", _params[i]->getValueLength());
-  //      pitem.replace("{l}", parLength);
-  //      pitem.replace("{v}", _params[i]->getValue());
-  //      pitem.replace("{c}", _params[i]->getCustomHTML());
-  //    } else {
-  //      pitem = _params[i]->getCustomHTML();
-  //    }
-  //
-  //    page += pitem;
-  //    }
-  //    if (_params[0] != NULL) {
-  //    page += "<br/>";
-  //    }*/
-  //
-  //  /*if (_sta_static_ip) {
-  //
-  //    String item = FPSTR(HTTP_FORM_PARAM);
-  //    item.replace("{i}", "ip");
-  //    item.replace("{n}", "ip");
-  //    item.replace("{p}", "Static IP");
-  //    item.replace("{l}", "15");
-  //    item.replace("{v}", _sta_static_ip.toString());
-  //
-  //    page += item;
-  //
-  //    item = FPSTR(HTTP_FORM_PARAM);
-  //    item.replace("{i}", "gw");
-  //    item.replace("{n}", "gw");
-  //    item.replace("{p}", "Static Gateway");
-  //    item.replace("{l}", "15");
-  //    item.replace("{v}", _sta_static_gw.toString());
-  //
-  //    page += item;
-  //
-  //    item = FPSTR(HTTP_FORM_PARAM);
-  //    item.replace("{i}", "sn");
-  //    item.replace("{n}", "sn");
-  //    item.replace("{p}", "Subnet");
-  //    item.replace("{l}", "15");
-  //    item.replace("{v}", _sta_static_sn.toString());
-  //
-  //    page += item;
-  //
-  //    page += "<br/>";
-  //    }*/
-  //
-  //  page += FPSTR(HTTP_FORM_END);
-  //  page += FPSTR(HTTP_SCAN_LINK);
-  //
-  //  page += FPSTR(HTTP_END);
 
   addFooter(page);
 
@@ -227,103 +164,17 @@ void setupServer()
 {
   server.on("/", handle_root);
   server.on("/setup", handle_setup);
-
-  server.on("/enable", []() {
-    digitalWrite(LED_PIN, LOW);
-    server.send ( 200, "application/json", "{\"enabled\":true}");
-  });
-
-  server.on("/disable", []() {
-    digitalWrite(LED_PIN, HIGH);
-    server.send ( 200, "application/json", "{\"enabled\":false}");
-  });
-
-  //current status as json
-  server.on("/status", handle_status);
-
   server.on("/wifi", std::bind(&handleWifi, true));
   server.on("/0wifi", std::bind(&handleWifi, false));
   server.on("/wifisave", std::bind(&handleWifiSave));
 
-  //scan networks as json
-  server.on("/scan", []() {
-    String response = "{";
-    int n = WiFi.scanNetworks();
-    response = "{\"total\":";
-    response += n;
-    response += ",\"networks\":[";
-    if (n == 0) {
-      //      Serial.println(F("No networks found"));
-      //      page += F("No networks found. Refresh to scan again.");
-    } else {
-
-      //sort networks
-      int indices[n];
-      for (int i = 0; i < n; i++) {
-        indices[i] = i;
-      }
-
-      // RSSI SORT
-
-      // old sort
-      for (int i = 0; i < n; i++) {
-        for (int j = i + 1; j < n; j++) {
-          if (WiFi.RSSI(indices[j]) > WiFi.RSSI(indices[i])) {
-            std::swap(indices[i], indices[j]);
-          }
-        }
-      }
-
-      /*std::sort(indices, indices + n, [](const int & a, const int & b) -> bool
-        {
-        return WiFi.RSSI(a) > WiFi.RSSI(b);
-        });*/
-
-      //display networks in page
-      for (int i = 0; i < n; i++) {
-        if (indices[i] == -1) continue; // skip dups
-        if (i) {
-          response += ",";
-        }
-        response += "{\"ssid\":\"";
-        response += WiFi.SSID(indices[i]);
-        response += "\",\"quality\":";
-        response += getRSSIasQuality(WiFi.RSSI(indices[i]));
-        response += ",\"encrypted\":";
-        response += (WiFi.encryptionType(indices[i]) != ENC_TYPE_NONE ? "true" : "false");
-        response += "}";
-        delay(0);
-      }
-      response += "]}";
-
-      server.send ( 200, "application/json", response);
-    }
-  });
+  //JSON
+  server.on("/enable", handle_enable);
+  server.on("/disable", handle_disable);
+  server.on("/status", handle_status);
+  server.on("/scan", handle_scan);
 
   server.on("/reset", handleReset);
-
-  server.on("/info", []() {
-    char body[1024] = {0};
-
-    uint32_t realSize = ESP.getFlashChipRealSize();
-    uint32_t ideSize = ESP.getFlashChipSize();
-    FlashMode_t ideMode = ESP.getFlashChipMode();
-    IPAddress ip = server.client().localIP();
-
-    sprintf(body, "{\"Version\":\"%d\",\"id\":\"%06X\",\"Flash id\":\"%08X\",\"Flash real size\":\"%u\",\"Flash ide size\":\"%u\",\"Flash size\":\"%s\",\"Sketch Size\":\"%u\",\"Free Sketch Space\":\"%u\",\"Client IP\":\"%u.%u.%u.%u\"}",
-            VERSION,
-            ESP.getChipId(),
-            ESP.getFlashChipId(),
-            realSize,
-            ideSize,
-            (ideSize != realSize ? "Flash Chip configuration wrong!" : "Flash Chip configuration ok"),
-            ESP.getSketchSize(),
-            ESP.getFreeSketchSpace(),
-            ip[0], ip[1], ip[2], ip[3]
-           );
-    server.send ( 200, "application/json", body);
-  });
-
 
   server.onNotFound ( handleNotFound );
 
@@ -334,23 +185,35 @@ void setupServer()
   dbg_printf ("[SERVER] Ready\n");
 }
 
-void handle_root() {
-
+void handle_root()
+{
   // if Wifi setup, launch setup wizard
-  if (wifiSetup)
+  if (WiFi.status() != WL_CONNECTED && server.client().localIP() == WiFi.softAPIP())
   {
     server.send(200, "text/html", F("<meta HTTP-EQUIV='REFRESH' content='0; url=http://192.168.4.1/setup'>"));
     return;
   }
 
+  if (server.hasArg("channel")) {
+    setOutputStatus(server.arg("channel").toInt(), server.arg("enable").toInt());
+    server.sendHeader("Location", String("http://") + server.client().localIP().toString(), true);
+    server.send ( 302, "text/plain", ""); // Empty content inhibits Content-length header so we have to close the socket ourselves.
+    server.client().stop(); // Stop is needed because we sent no content length
+  }
+
   String reply = "";
   addHeader(true, reply);
 
-
-
-
   reply += F("<div class='grid'>");
   reply += F("<div class='full'><div class='black'>System Info</div></div>");
+
+  reply += F("<div>Version:</div><div>");
+  reply += VERSION;
+  reply += F("</div>");
+
+  reply += F("<div>Build:</div><div>");
+  reply += F( __DATE__ ", " __TIME__);
+  reply += F("</div>");
 
   reply += F("<div>Uptime:</div>");
   char strUpTime[40];
@@ -395,14 +258,7 @@ void handle_root() {
     reply += WiFi.RSSI();
     reply += F(" dB");
     reply += F("</div>");
-  } else {
-
   }
-
-
-  //  reply += F("<div>Core Version:</div><div>");
-  //  reply += ESP.getCoreVersion();
-  //  reply += F("</div>");
 
   reply += F("<div>STA MAC:</div><div>");
   uint8_t mac[] = {0, 0, 0, 0, 0, 0};
@@ -425,7 +281,8 @@ void handle_root() {
   reply += F("</div>");
 
   reply += F("<div>Flash Chip ID:</div><div>");
-  reply += ESP.getFlashChipId();
+  sprintf(ChipId, "%06X", ESP.getFlashChipId());
+  reply += ChipId;
   reply += F("</div>");
 
   reply += F("<div>Flash Size:</div><div>");
@@ -438,17 +295,42 @@ void handle_root() {
   reply += ESP.getFreeSketchSpace() / 1024;
   reply += F(" kB</div>");
 
+  if (!isOutputDisabled(0)) {
+    reply += F("<div>Channel 0:</div><div><a href='/?channel=0&amp;enable=");
+    reply += getOutputStatus(0) ? F("0") : F("1");
+    reply += F("'>");
+    reply += getOutputStatus(0) ? F("Disable") : F("Enable");
+    reply += F("</a></div>");
+  }
+
+  if (!isOutputDisabled(1)) {
+    reply += F("<div>Channel 0:</div><div><a href='/?channel=1&amp;enable=");
+    reply += getOutputStatus(1) ? F("0") : F("1");
+    reply += F("'>");
+    reply += getOutputStatus(1) ? F("Disable") : F("Enable");
+    reply += F("</a></div>");
+  }
+
+  if (!isOutputDisabled(2)) {
+    reply += F("<div>Channel 0:</div><div><a href='/?channel=2&amp;enable=");
+    reply += getOutputStatus(2) ? F("0") : F("1");
+    reply += F("'>");
+    reply += getOutputStatus(2) ? F("Disable") : F("Enable");
+    reply += F("</a></div>");
+  }
+
   reply += F("</div>");
   addFooter(reply);
   server.send(200, "text/html", reply);
 }
 
-void handle_setup() {
+void handle_setup()
+{
 
   String reply = "";
   addHeader(false, reply);
 
-  if (WiFi.status() == WL_CONNECTED && false)
+  if (WiFi.status() == WL_CONNECTED && server.client().localIP() == WiFi.softAPIP())
   {
     SaveSettings();
     IPAddress ip = WiFi.localIP();
@@ -480,7 +362,7 @@ void handle_setup() {
   }
 
   // if ssid config not set and params are both provided
-  if (status == 0 && ssid.length() != 0 && password.length() != 0 && strcasecmp(Settings.WifiSSID, "ssid") == 0)
+  if (status == 0 && ssid.length() != 0 && password.length() != 0)
   {
     strncpy(Settings.WifiKey, password.c_str(), sizeof(Settings.WifiKey));
     strncpy(Settings.WifiSSID, ssid.c_str(), sizeof(Settings.WifiSSID));
@@ -527,37 +409,29 @@ void handle_setup() {
 
   if (status == 1)  // connecting stage...
   {
-    if (refreshCount > 0)
-    {
-      status = 0;
-      strncpy(Settings.WifiSSID, "ssid", sizeof(Settings.WifiSSID));
-      Settings.WifiKey[0] = 0;
-      reply += F("<a class=\"button-menu\" href=\"setup\">Back to Setup</a>");
-    }
-    else
-    {
-      int wait = 20;
-      if (refreshCount != 0)
-        wait = 3;
-      reply += F("Please wait for <h1 id=\"countdown\">20..</h1>");
-      reply += F("<script type=\"text/JavaScript\">");
-      reply += F("function timedRefresh(timeoutPeriod) {");
-      reply += F("   var timer = setInterval(function() {");
-      reply += F("   if (timeoutPeriod > 0) {");
-      reply += F("       timeoutPeriod -= 1;");
-      reply += F("       document.getElementById(\"countdown\").innerHTML = timeoutPeriod + \"..\" + \"<br />\";");
-      reply += F("   } else {");
-      reply += F("       clearInterval(timer);");
-      reply += F("            window.location.href = window.location.href;");
-      reply += F("       };");
-      reply += F("   }, 1000);");
-      reply += F("};");
-      reply += F("timedRefresh(");
-      reply += wait;
-      reply += F(");");
-      reply += F("</script>");
-      reply += F("seconds while trying to connect");
-    }
+
+    int wait = 20;
+    if (refreshCount != 0)
+      wait = 3;
+    reply += F("Please wait for <h1 id=\"countdown\">20..</h1>");
+    reply += F("<script type=\"text/JavaScript\">");
+    reply += F("function timedRefresh(timeoutPeriod) {");
+    reply += F("   var timer = setInterval(function() {");
+    reply += F("   if (timeoutPeriod > 0) {");
+    reply += F("       timeoutPeriod -= 1;");
+    reply += F("       document.getElementById(\"countdown\").innerHTML = timeoutPeriod + \"..\" + \"<br />\";");
+    reply += F("   } else {");
+    reply += F("       clearInterval(timer);");
+    reply += F("            window.location.href = window.location.href;");
+    reply += F("       };");
+    reply += F("   }, 1000);");
+    reply += F("};");
+    reply += F("timedRefresh(");
+    reply += wait;
+    reply += F(");");
+    reply += F("</script>");
+    reply += F("seconds while trying to connect");
+
     refreshCount++;
   }
 
@@ -569,7 +443,7 @@ void handle_setup() {
 
 void addPinStateSelect(String& str, String name,  int value)
 {
-  String options[13];
+  String options[15];
   options[0] = F("Disabled");
   options[1] = F("GPIO4 Low");
   options[2] = F("GPIO4 High");
@@ -583,7 +457,9 @@ void addPinStateSelect(String& str, String name,  int value)
   options[10] = F("GPIO14 High");
   options[11] = F("GPIO16 Low");
   options[12] = F("GPIO16 High");
-  int values[13];
+  options[13] = F("GPIO2 Low");
+  options[14] = F("GPIO2 High");
+  int values[15];
   values[0] = 0;
   values[1] = -4;
   values[2] = 4;
@@ -597,16 +473,18 @@ void addPinStateSelect(String& str, String name,  int value)
   values[10] = 14;
   values[11] = -16;
   values[12] = 16;
+  values[13] = -2;
+  values[14] = 2;
 
   str += F("<select name='");
   str += name;
   str += "'>";
-  for (int x = 0; x < 13; x++)
+  for (int x = 0; x < 15; x++)
   {
     str += F("<option value='");
     str += values[x];
     str += "'";
-    if (value == x)
+    if (value == values[x])
       str += F(" selected");
     str += ">";
     str += options[x];
@@ -615,24 +493,23 @@ void addPinStateSelect(String& str, String name,  int value)
   str += F("</select>");
 }
 
-void handle_config() {
+void handle_config()
+{
   char tmpString[64];
 
   String name = server.arg("name");
   String password = server.arg("password");
-  String ssid = server.arg("ssid");
-  String key = server.arg("key");
   String espip = server.arg("espip");
   String espgateway = server.arg("espgateway");
   String espsubnet = server.arg("espsubnet");
   String espdns = server.arg("espdns");
 
-  if (ssid[0] != 0)
+  if (name.length() != 0)
   {
     strncpy(Settings.Name, name.c_str(), sizeof(Settings.Name));
-    strncpy(Settings.Password, password.c_str(), sizeof(Settings.Password));
-    strncpy(Settings.WifiSSID, ssid.c_str(), sizeof(Settings.WifiSSID));
-    strncpy(Settings.WifiKey, key.c_str(), sizeof(Settings.WifiKey));
+    if (password.length() != 0) {
+      strncpy(Settings.Password, password.c_str(), sizeof(Settings.Password));
+    }
 
     espip.toCharArray(tmpString, 26);
     str2ip(tmpString, Settings.IP);
@@ -642,11 +519,31 @@ void handle_config() {
     str2ip(tmpString, Settings.Subnet);
     espdns.toCharArray(tmpString, 26);
     str2ip(tmpString, Settings.DNS);
-    SaveSettings();
+
+    // TODO Checkbox led
+    int8_t cho0 = Settings.cho[0], cho1 = Settings.cho[1], cho2 = Settings.cho[2];
+    Settings.cho[0]  =  server.arg("cho0").toInt();
+    Settings.cho[1]  =  server.arg("cho1").toInt();
+    Settings.cho[2]  =  server.arg("cho2").toInt();
+    if (cho0 != Settings.cho[0] || cho1 != Settings.cho[1] || cho2 != Settings.cho[2]) {
+      configureOutputs();
+    }
+
+
+    server.sendHeader("Location", String("http://") + server.client().localIP().toString() + String("/config?saved=") + String(SaveSettings() ? 1 : 0), true);
+    server.send ( 302, "text/plain", ""); // Empty content inhibits Content-length header so we have to close the socket ourselves.
+    server.client().stop(); // Stop is needed because we sent no content length
   }
 
   String reply = "";
   addHeader(true, reply);
+
+  if (server.arg("saved").toInt() == 1) {
+    reply += F("<h3 style=\"color:#00cc00\">Configuration Saved!</h3>");
+  } else if (server.hasArg("saved")) {
+    reply += F("<h3 style=\"color:red\">Error saving to flash!</h3>");
+  }
+
 
   reply += F("<form method='post'>");
 
@@ -661,10 +558,11 @@ void handle_config() {
   reply += F("'/></div>");
 
   reply += F("<div><label>Password</label></div>");
-  reply += F("<div><input type='text' name='password' pattern='.{8,63}' required value='");
+  reply += F("<div><input type='text' name='password' pattern='.{8,64}' value='");
   //  Settings.Password[63] = 0;
   //  reply += Settings.Password;
   reply += F("'/></div>");
+  //  reply += F("<div class='full'>Enter passsword to change it.</div>");
 
   reply += F("<div class='full'><div class='black'>Optional Settings</div></div>");
 
@@ -691,15 +589,15 @@ void handle_config() {
 
   reply += F("<div class='full'><div class='black'>GPIO configuration</div></div>");
   reply += F("<div><label>Channel 1:</label></div><div>");
-  addPinStateSelect(reply, "chi0", Settings.cho[0]);
+  addPinStateSelect(reply, "cho0", Settings.cho[0]);
   reply += F("</div>");
 
   reply += F("<div><label>Channel 2:</label></div><div>");
-  addPinStateSelect(reply, "chi1", Settings.cho[1]);
+  addPinStateSelect(reply, "cho1", Settings.cho[1]);
   reply += F("</div>");
 
   reply += F("<div><label>Channel 3:</label></div><div>");
-  addPinStateSelect(reply, "chi2", Settings.cho[2]);
+  addPinStateSelect(reply, "cho2", Settings.cho[2]);
   reply += F("</div>");
 
   reply += F("<div class='full'><div style=\"text-align:center;\"><button class=\"button\">Submit</button></div></div>");
@@ -708,91 +606,77 @@ void handle_config() {
 
   reply += F("</form>");
 
-  /*
-    reply += F("<form name='frmselect' method='post'><table style=\"border-collapse: collapse;border-spacing: 0;\">");
-    reply += F("<tr><th>Main Settings<th><tr><td>Name:<td><input type='text' name='name' maxlength='31' required value='");
-    Settings.Name[25] = 0;
-    reply += Settings.Name;
-    reply += F("'><tr><td>Password:<td><input type='text' name='password' pattern='.{8,63}' required value='");
-    //  Settings.Password[25] = 0;
-    //  reply += Settings.Password;
-    //  reply += F("'><tr><td>SSID:<td><input type='text' name='ssid' value='");
-    //  reply += Settings.WifiSSID;
-    //  reply += F("'><tr><td>WPA Key:<td><input type='password' maxlength='63' name='key' value='");
-    //  reply += Settings.WifiKey;
-
-    reply += F("'>");
-
-
-
-    reply += F("<tr><th>Optional Settings<th>");
-
-    reply += F("<tr><td>ESP IP:<td><input type='text' name='espip' value='");
-    sprintf_P(str, PSTR("%u.%u.%u.%u"), Settings.IP[0], Settings.IP[1], Settings.IP[2], Settings.IP[3]);
-    reply += str;
-
-    reply += F("'><tr><td>ESP GW:<td><input type='text' name='espgateway' value='");
-    sprintf_P(str, PSTR("%u.%u.%u.%u"), Settings.Gateway[0], Settings.Gateway[1], Settings.Gateway[2], Settings.Gateway[3]);
-    reply += str;
-
-    reply += F("'><tr><td>ESP Subnet:<td><input type='text' name='espsubnet' value='");
-    sprintf_P(str, PSTR("%u.%u.%u.%u"), Settings.Subnet[0], Settings.Subnet[1], Settings.Subnet[2], Settings.Subnet[3]);
-    reply += str;
-
-    reply += F("'><tr><td>ESP DNS:<td><input type='text' name='espdns' value='");
-    sprintf_P(str, PSTR("%u.%u.%u.%u"), Settings.DNS[0], Settings.DNS[1], Settings.DNS[2], Settings.DNS[3]);
-    reply += str;
-    reply += F("'>");
-
-    reply += F("<tr><th>GPIO configuration<th>");
-    reply += F("<tr><td>Channel 1:<td>");
-    addPinStateSelect(reply, "chi0", Settings.cho[0]);
-    reply += F("<tr><td>Channel 2:<td>");
-    addPinStateSelect(reply, "chi1", Settings.cho[1]);
-    reply += F("<tr><td>Channel 3:<td>");
-    addPinStateSelect(reply, "chi2", Settings.cho[2]);
-
-    reply += F("<tr><TD colspan=\"2\" style=\"text-align:center;\"><input class=\"button-link\" type='submit' value='Submit'>");
-
-    reply += F("</table></form>");
-  */
   addFooter(reply);
   server.send(200, "text/html", reply);
 }
 
-//void handle_hardware() {
-//  String reply = "";
-//  addHeader(true, reply);
-//
-//  reply += F("<form  method='post'><table><th>Hardware Settings<th><tr><td>");
-//
-//
-//
-//  reply += F("<tr><td>GPIO boot states:<td>");
-//  reply += F("<tr><td>Channel 1:<td>");
-//  addPinStateSelect(reply, "chi0", Settings.cho[0]);
-//  reply += F("<tr><td>Channel 2:<td>");
-//  addPinStateSelect(reply, "chi1", Settings.cho[1]);
-//  reply += F("<tr><td>Channel 3:<td>");
-//  addPinStateSelect(reply, "chi2", Settings.cho[2]);
-//
-//  reply += F("<tr><td><td><input class=\"button-link\" type='submit' value='Submit'><tr><td>");
-//
-//  reply += F("</table></form>");
-//  addFooter(reply);
-//  server.send(200, "text/html", reply);
-//}
 
+void handle_enable() {
+  int channel = server.arg("channel").toInt();
+  Serial.printf("Enable channel %d\r\n", channel);
+  setOutputStatus(channel, true);
+  handle_status();
+}
+void handle_disable() {
+  int channel = server.arg("channel").toInt();
+  Serial.printf("Disable channel %d\r\n", channel);
+  setOutputStatus(channel, false);
+  handle_status();
+}
 void handle_status() {
-  String message = "";
-  if (digitalRead(LED_PIN) == LOW) {
-    message = "{\"enabled\":true}";
-  } else {
-    message = "{\"enabled\":false}";
-  }
+  String message = "{";
+  message += F("\"channel0\":");
+  message += isOutputDisabled(0) ? F("null") : (getOutputStatus(0) ? F("true") : F("false"));
+  message += F(",\"channel1\":");
+  message += isOutputDisabled(1) ? F("null") : (getOutputStatus(1) ? F("true") : F("false"));
+  message += F(",\"channel2\":");
+  message += isOutputDisabled(2) ? F("null") : (getOutputStatus(2) ? F("true") : F("false"));
+  message += F("}");
   server.send ( 200, "application/json", message);
 }
+void handle_scan() {
+  String response = "{";
+  int n = WiFi.scanNetworks();
+  response = "{\"total\":";
+  response += n;
+  response += ",\"networks\":[";
+  //sort networks
+  int indices[n];
+  for (int i = 0; i < n; i++) {
+    indices[i] = i;
+  }
 
+  // RSSI SORT
+
+  // old sort
+  for (int i = 0; i < n; i++) {
+    for (int j = i + 1; j < n; j++) {
+      if (WiFi.RSSI(indices[j]) > WiFi.RSSI(indices[i])) {
+        std::swap(indices[i], indices[j]);
+      }
+    }
+  }
+
+  //display networks in page
+  for (int i = 0; i < n; i++) {
+    if (indices[i] == -1) continue; // skip dups
+    if (i) {
+      response += ",";
+    }
+    response += "{\"ssid\":\"";
+    response += WiFi.SSID(indices[i]);
+    response += "\",\"quality\":";
+    response += getRSSIasQuality(WiFi.RSSI(indices[i]));
+    response += ",\"encrypted\":";
+    response += (WiFi.encryptionType(indices[i]) != ENC_TYPE_NONE ? "true" : "false");
+    response += "}";
+    delay(0);
+  }
+  response += "]}";
+
+  server.send ( 200, "application/json", response);
+
+}
 void addHeader(boolean showMenu, String& str)
 {
   boolean cssfile = false;

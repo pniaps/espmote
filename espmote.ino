@@ -34,7 +34,7 @@ Ticker tickerPing;
 #define DEFAULT_SUBNET      "255.255.255.0"     // Enter your subnet
 
 #define ESP_PROJECT_PID 2016110801L
-#define VERSION 170812
+#define VERSION 170814
 
 struct SettingsStr
 {
@@ -52,7 +52,7 @@ struct SettingsStr
   char          Name[32];
   char          Password[64];
 
-  int8_t        led;
+  boolean        led;
   int8_t        chi[3]; //channel input
   int8_t        cho[3]; //channel output
 } Settings;
@@ -98,20 +98,13 @@ uint16_t lowestRAM = 0;
 void setup()
 {
   lowestRAM = FreeMem();
-  
+
   pinMode(LED_PIN, OUTPUT);
   digitalWrite(LED_PIN, HIGH);
   ticker.attach(0.2, changeLED);
 
   Serial.begin(115200);
   Serial.println();
-  Serial.println("Starting...");
-  Serial.println( "Compiled: " __DATE__ ", " __TIME__);
-  Serial.print("Flash size: ");
-  Serial.println(ESP.getFlashChipRealSize());
-
-  Serial.print(F("Version: "));
-  Serial.println(VERSION);
 
   fileSystemCheck();
   LoadSettings();
@@ -122,6 +115,8 @@ void setup()
     delay(1000);
     ResetFactory();
   }
+
+  configureOutputs();
 
   if (strcasecmp(Settings.WifiSSID, "ssid") == 0)
     wifiSetup = true;
@@ -150,10 +145,6 @@ void setup()
     WifiAPMode(true);
     tryToConnect = true;
   }
-
-
-  //Serial.print(__DATE__);
-  //Serial.println("\n");
 
   //enable MDNS
   if (!MDNS.begin(hostString)) {
@@ -250,6 +241,7 @@ void loop()
 
         WifiAPMode(false);
         tryToConnect = false;
+        SaveSettings();
       }
     }
   }
