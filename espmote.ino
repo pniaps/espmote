@@ -33,13 +33,13 @@ Ticker tickerPing;
 #define DEFAULT_GW          "192.168.0.1"       // Enter your gateway
 #define DEFAULT_SUBNET      "255.255.255.0"     // Enter your subnet
 
-#define ESP_PROJECT_PID 2016110801L
-#define VERSION 170814
+#define SETTINGS_VERSION 170815
+#define VERSION 170815
 
 struct SettingsStr
 {
-  unsigned long PID;
-  int           Version;
+  unsigned int settings_version;
+  unsigned int Version;
 
   byte          IP[4];
   byte          Gateway[4];
@@ -109,10 +109,11 @@ void setup()
   fileSystemCheck();
   LoadSettings();
 
-  if (Settings.Version != VERSION || Settings.PID != ESP_PROJECT_PID)
+  if (Settings.settings_version != SETTINGS_VERSION)
   {
-    Serial.println(F("INIT : Incorrect PID or version!"));
+    Serial.println(F("INIT : Incorrect settings version!"));
     delay(1000);
+    //TODO fix instead reset
     ResetFactory();
   }
 

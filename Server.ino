@@ -1,4 +1,4 @@
-
+#include "StreamString.h"
 #include <memory>
 
 const char HTTP_HEAD[] PROGMEM            = "<!DOCTYPE html><html lang=\"en\"><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, user-scalable=no\"/><title>{v}</title>";
@@ -122,7 +122,7 @@ void handleWifi(boolean scan) {
   }
 
   page += F("<script>function c(l){document.getElementById('s').value=l.innerText||l.textContent;document.getElementById('p').focus();}</script>");
-  page += F("<form method='post' action='wifisave'><input id='s' name='ssid' length='31' placeholder='SSID'><input id='p' name='password' length='63' type='password' placeholder='password'><div class='full' style=\"text-align:center;\"><button class=\"button\">Submit</button></div></form>");
+  page += F("<form method='post' action='wifisave'><input type='text' id='s' name='ssid' length='31' placeholder='SSID'><input id='p' name='password' length='63' type='password' placeholder='password'><div class='full' style=\"text-align:center;\"><button class=\"button\">Submit</button></div></form>");
 
 
   addFooter(page);
@@ -181,6 +181,8 @@ void setupServer()
   server.on("/config", handle_config);
   //  server.on("/hardware", handle_hardware);
 
+  server.on("/update", HTTP_GET, handle_update_get);
+  server.on("/update", HTTP_POST, handle_update_post, handle_update_upload);
   server.begin();
   dbg_printf ("[SERVER] Ready\n");
 }
@@ -371,10 +373,10 @@ void handle_setup()
     refreshCount = 0;
   }
 
-  reply += F("<h1>Wifi Setup wizard</h1><BR>");
+  reply += F("<div class='full'><div class='black'>Wifi Setup wizard</div></div>");
   reply += F("<form name='frmselect' method='post'>");
 
-  if (status == 0)  // first step, scan and show access points within reach...
+  if (status == 0 || WiFi.status() == WL_CONNECTED)  // first step, scan and show access points within reach...
   {
     if (n == 0)
       n = WiFi.scanNetworks();
@@ -385,14 +387,14 @@ void handle_setup()
     {
       for (int i = 0; i < n; ++i)
       {
-        reply += F("<input type='radio' name='ssid' value='");
+        reply += F("<label><input type='radio' name='ssid' value='");
         reply += WiFi.SSID(i);
         reply += F("'");
         if (WiFi.SSID(i) == ssid)
           reply += F(" checked ");
         reply += F(">");
         reply += WiFi.SSID(i);
-        reply += F("</input><br>");
+        reply += F("</input></label><br>");
       }
     }
 
@@ -400,37 +402,17 @@ void handle_setup()
     reply += F("<input type ='text' name='other' value='");
     reply += other;
     reply += F("'><br><br>");
-    reply += F("Password: <input type ='text' name='pass' value='");
+    reply += F("Password: <input type='text' name='pass' value='");
     reply += password;
     reply += F("'><br>");
 
     reply += F("<input type='submit' value='Connect'>");
-  }
-
-  if (status == 1)  // connecting stage...
-  {
-
+  }else{ // connecting stage...
+  
     int wait = 20;
     if (refreshCount != 0)
       wait = 3;
-    reply += F("Please wait for <h1 id=\"countdown\">20..</h1>");
-    reply += F("<script type=\"text/JavaScript\">");
-    reply += F("function timedRefresh(timeoutPeriod) {");
-    reply += F("   var timer = setInterval(function() {");
-    reply += F("   if (timeoutPeriod > 0) {");
-    reply += F("       timeoutPeriod -= 1;");
-    reply += F("       document.getElementById(\"countdown\").innerHTML = timeoutPeriod + \"..\" + \"<br />\";");
-    reply += F("   } else {");
-    reply += F("       clearInterval(timer);");
-    reply += F("            window.location.href = window.location.href;");
-    reply += F("       };");
-    reply += F("   }, 1000);");
-    reply += F("};");
-    reply += F("timedRefresh(");
-    reply += wait;
-    reply += F(");");
-    reply += F("</script>");
-    reply += F("seconds while trying to connect");
+    addCountDown(reply, wait);
 
     refreshCount++;
   }
@@ -623,6 +605,7 @@ void handle_disable() {
   setOutputStatus(channel, false);
   handle_status();
 }
+
 void handle_status() {
   String message = "{";
   message += F("\"channel0\":");
@@ -634,6 +617,7 @@ void handle_status() {
   message += F("}");
   server.send ( 200, "application/json", message);
 }
+
 void handle_scan() {
   String response = "{";
   int n = WiFi.scanNetworks();
@@ -677,6 +661,83 @@ void handle_scan() {
   server.send ( 200, "application/json", response);
 
 }
+
+void handle_update_get() {
+  String reply = "";
+  addHeader(true, reply);
+
+  reply += F("<form method='post' action='' enctype='multipart/form-data'><input type='file' name='update'><input type='submit' value='Update'></form>");
+
+  addFooter(reply);
+  server.send(200, "text/html", reply);
+}
+
+void handle_update_post() {
+  String reply = "";
+  addHeader(true, reply);
+
+  if (Update.hasError()) {
+    StreamString str;
+    Update.printError(str);
+    reply += F("<p>");
+    reply += str;
+    reply += F("</p>");
+  } else {
+    reply += F("<p>Update Success! Rebooting...</p>");
+  }
+
+  addCountDown(reply, 15);
+  addFooter(reply);
+
+  if (Update.hasError()) {
+    server.send(200, "text/html", reply);
+  } else {
+    server.client().setNoDelay(true);
+    server.send(200, "text/html", reply);
+    delay(100);
+    server.client().stop();
+    ESP.restart();
+  }
+}
+void handle_update_upload() {
+  // handler for the file upload, get's the sketch bytes, and writes
+  // them through the Update object
+  HTTPUpload& upload = server.upload();
+
+  if (upload.status == UPLOAD_FILE_START) {
+
+    WiFiUDP::stopAll();
+
+    dbg_printf("Update: %s\n", upload.filename.c_str());
+
+    uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
+    Update.begin(maxSketchSpace); //start with max available size
+
+  } else if (upload.status == UPLOAD_FILE_WRITE && !Update.hasError()) {
+
+    dbg_printf(".");
+
+    Update.write(upload.buf, upload.currentSize);
+
+  } else if (upload.status == UPLOAD_FILE_END && !Update.hasError()) {
+
+    if (Update.end(true)) { //true to set the size to the current progress
+      dbg_printf("Update Success: %u\nRebooting...\n", upload.totalSize);
+    } else {
+      StreamString str;
+      Update.printError(str);
+      dbg_printf(str.c_str());
+    }
+
+  } else if (upload.status == UPLOAD_FILE_ABORTED) {
+
+    Update.end();
+
+    dbg_printf("Update was aborted");
+  }
+  delay(0);
+}
+
 void addHeader(boolean showMenu, String& str)
 {
   boolean cssfile = false;
@@ -705,7 +766,7 @@ void addHeader(boolean showMenu, String& str)
   str += F("@media (min-width:360px){.grid>div:not(.full){width: 50%}}");
 
   str += F(".container{margin:0 auto;max-width: 400px;}");
-  str += F("label,input,select{width:100%;display:inline-block;height:30px;line-height:30px;}input,select{padding: 0 5px;}");
+  str += F("label,input[type=text],input[type=password],select{width:100%;display:inline-block;height:30px;line-height:30px;}input,select{padding: 0 5px;}");
   str += F(".button{border: 0;border-radius: 0.3rem;background-color: #1fa3ec;color: #fff;line-height: 2.4rem;font-size: 1.2rem;width: 100%;}");
   str += F("@media (max-width:359px){label{height: auto;line-height:normal;}}");
   str += F(".menu{margin: 10px 0}.menu>a{border:0;border-radius:0.3rem;background-color:#1fa3ec;color:#fff;line-height:30px;height:30px;font-size:1.2rem;padding:0 5px;text-decoration:none;display:inline-block;}.menu>a+a{margin-left:10px}");
@@ -727,13 +788,39 @@ void addHeader(boolean showMenu, String& str)
     str += F("<div class=\"menu\">");
     str += F("<a href=\"/\">Main</a>");
     str += F("<a href=\"config\">Config</a>");
-    //    str += F("<a href=\"hardware\">Hardware</a>");
     str += F("<a href=\"wifi\">Wifi</a>");
+    str += F("<a href=\"update\">Update</a>");
     //    str += F("<a href=\"reset\">Factory reset</a>");
     str += F("</div>");
   }
 }
+
 void addFooter(String& str)
 {
   str += F("<br /><h6>espmote.pnia.es</h6></div></body></html>");
 }
+
+void addCountDown(String& str, int seconds)
+{
+  str += F("Please wait for <h1 id=\"countdown\">");
+  str += seconds;
+  str += F("..</h1>");
+  str += F("<script>");
+  str += F("function timedRefresh(timeoutPeriod) {");
+  str += F("   var timer = setInterval(function() {");
+  str += F("   if (timeoutPeriod > 0) {");
+  str += F("       timeoutPeriod -= 1;");
+  str += F("       document.getElementById(\"countdown\").innerHTML = timeoutPeriod + \"..\" + \"<br />\";");
+  str += F("   } else {");
+  str += F("       clearInterval(timer);");
+  str += F("            window.location.href = window.location.href;");
+  str += F("       };");
+  str += F("   }, 1000);");
+  str += F("};");
+  str += F("timedRefresh(");
+  str += seconds;
+  str += F(");");
+  str += F("</script>");
+  str += F("seconds while trying to connect");
+}
+

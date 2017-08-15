@@ -38,8 +38,8 @@ void ResetFactory()
   LoadSettings();
   // now we set all parameters that need to be non-zero as default value
 
-  Settings.PID             = ESP_PROJECT_PID;
-  Settings.Version         = VERSION;
+  Settings.settings_version = SETTINGS_VERSION;
+  Settings.Version          = VERSION;
 
 #if DEFAULT_USE_STATIC_IP
   str2ip((char*)DEFAULT_IP, Settings.IP);
