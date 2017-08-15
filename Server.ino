@@ -304,7 +304,7 @@ void handle_root()
   }
 
   if (!isOutputDisabled(1)) {
-    reply += F("<div>Channel 0:</div><div><a href='/?channel=1&amp;enable=");
+    reply += F("<div>Channel 1:</div><div><a href='/?channel=1&amp;enable=");
     reply += getOutputStatus(1) ? F("0") : F("1");
     reply += F("'>");
     reply += getOutputStatus(1) ? F("Disable") : F("Enable");
@@ -312,7 +312,7 @@ void handle_root()
   }
 
   if (!isOutputDisabled(2)) {
-    reply += F("<div>Channel 0:</div><div><a href='/?channel=2&amp;enable=");
+    reply += F("<div>Channel 2:</div><div><a href='/?channel=2&amp;enable=");
     reply += getOutputStatus(2) ? F("0") : F("1");
     reply += F("'>");
     reply += getOutputStatus(2) ? F("Disable") : F("Enable");
